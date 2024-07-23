@@ -144,9 +144,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Checking passphrase: {} - Address: {} - Info: {}", passphrase, address, info);
 
                         let balance = info["final_balance"].as_f64().unwrap_or(0.0);
-
-                        // Adicione esta linha para fins de teste
-                        let balance = if balance == 0.0 { 1.0 } else { balance };
                         
                         if balance > 0.0 {
                             println!("Address: {} with passphrase: {} has balance: {} and private key: {}", address, passphrase, balance, private_key);
