@@ -83,9 +83,7 @@ fn generate_private_key_from_passphrase(passphrase: &str) -> PrivateKey {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let default_path = "words.txt".to_string();
-    let path = env::var("WORDS_PATH").unwrap_or(default_path);
-    let words = read_lines(path)?;
+   
     let max_depth = 6;  // Profundidade máxima das combinações
 
     // Define the batch size and the number of concurrent requests
@@ -96,6 +94,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = rand::thread_rng();
 
     loop {
+        println!("Carregando novamente...");
+        let default_path = "words.txt".to_string();
+        let path = env::var("WORDS_PATH").unwrap_or(default_path);
+        let words = read_lines(path)?;
+
         // Selecionar palavras aleatoriamente
         let selected_words: Vec<_> = words.choose_multiple(&mut rng, max_depth).collect();
 
