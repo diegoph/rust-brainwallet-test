@@ -15,6 +15,20 @@ use futures::stream::{self, StreamExt};
 use tokio::time::{sleep, Duration};
 use rand::seq::SliceRandom;
 use std::env;
+use clap::{Parser, ValueEnum};
+
+#[derive(Parser)]
+#[clap(name = "Bitcoin Address Checker")]
+struct Cli {
+    #[clap(short, long, value_enum, default_value = "random")]
+    mode: Mode,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum Mode {
+    Random,
+    Sequential,
+}
 
 async fn check_balances(addresses: &[String]) -> Result<HashMap<String, Value>, reqwest::Error> {
     let client = Client::new();
@@ -83,7 +97,10 @@ fn generate_private_key_from_passphrase(passphrase: &str) -> PrivateKey {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-   
+    let cli = Cli::parse();
+
+    let default_path = "words.txt".to_string();
+    let path = env::var("WORDS_PATH").unwrap_or(default_path);
     let max_depth = 6;  // Profundidade máxima das combinações
 
     // Define the batch size and the number of concurrent requests
@@ -93,14 +110,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let secp = Secp256k1::new();
     let mut rng = rand::thread_rng();
 
-    loop {
-        println!("Carregando novamente...");
-        let default_path = "words.txt".to_string();
-        let path = env::var("WORDS_PATH").unwrap_or(default_path);
-        let words = read_lines(path)?;
+    let words = read_lines(&path)?;
+    let mut word_index = 0;
 
-        // Selecionar palavras aleatoriamente
-        let selected_words: Vec<_> = words.choose_multiple(&mut rng, max_depth).collect();
+    loop {
+        // Selecionar palavras de acordo com o modo
+        let selected_words: Vec<_> = match cli.mode {
+            Mode::Random => words.choose_multiple(&mut rng, max_depth).collect(),
+            Mode::Sequential => {
+                let mut selection = vec![&words[word_index]];
+                let remaining_words: Vec<_> = words.iter().filter(|&&ref word| word != &words[word_index]).collect();
+                let random_words: Vec<_> = remaining_words.choose_multiple(&mut rng, max_depth - 1).collect();
+                selection.extend(random_words);
+                word_index = (word_index + 1) % words.len();
+                selection
+            }
+        };
 
         // Gerar combinações das palavras selecionadas
         let combinations = generate_combinations(&selected_words, max_depth);
@@ -124,7 +149,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         stream::iter(batches)
             .map(|batch| {
-                let client = client.clone();
+                let _client = client.clone();
                 let addresses: Vec<String> = batch.to_vec();
                 async move {
                     match check_balances(&addresses).await {
