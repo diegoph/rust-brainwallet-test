@@ -14,6 +14,7 @@ use itertools::Itertools;
 use futures::stream::{self, StreamExt};
 use tokio::time::{sleep, Duration};
 use rand::seq::SliceRandom;
+use std::env;
 
 async fn check_balances(addresses: &[String]) -> Result<HashMap<String, Value>, reqwest::Error> {
     let client = Client::new();
@@ -82,7 +83,8 @@ fn generate_private_key_from_passphrase(passphrase: &str) -> PrivateKey {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = "words.txt";
+    let default_path = "words.txt".to_string();
+    let path = env::var("WORDS_PATH").unwrap_or(default_path);
     let words = read_lines(path)?;
     let max_depth = 6;  // Profundidade máxima das combinações
 
@@ -142,10 +144,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Checking passphrase: {} - Address: {} - Info: {}", passphrase, address, info);
 
                         let balance = info["final_balance"].as_f64().unwrap_or(0.0);
+
+                        // Adicione esta linha para fins de teste
+                        let balance = if balance == 0.0 { 1.0 } else { balance };
                         
                         if balance > 0.0 {
                             println!("Address: {} with passphrase: {} has balance: {} and private key: {}", address, passphrase, balance, private_key);
 
+                            // Escrever os dados no arquivo
                             let mut file = OpenOptions::new()
                                 .append(true)
                                 .create(true)
