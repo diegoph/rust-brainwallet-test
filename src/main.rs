@@ -101,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let default_path = "words.txt".to_string();
     let path = env::var("WORDS_PATH").unwrap_or(default_path);
-    let max_depth = 6;  // Profundidade máxima das combinações
+    let max_depth = 4;  // Profundidade máxima das combinações
 
     // Define the batch size and the number of concurrent requests
     let batch_size = 100;
@@ -110,10 +110,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let secp = Secp256k1::new();
     let mut rng = rand::thread_rng();
 
-    let words = read_lines(&path)?;
+    let mut words = read_lines(&path)?;
     let mut word_index = 0;
+    let reload_interval = 1000; // número de iterações antes de recarregar a lista de palavras
+    let mut iteration_count = 0;
 
     loop {
+        if iteration_count >= reload_interval {
+            words = read_lines(&path)?;
+            iteration_count = 0;
+            println!("Lista recarregada...");
+        }
+
         // Selecionar palavras de acordo com o modo
         let selected_words: Vec<_> = match cli.mode {
             Mode::Random => words.choose_multiple(&mut rng, max_depth).collect(),
@@ -194,6 +202,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 sleep(Duration::from_secs(10)).await;
             })
             .await;
+
+        iteration_count += 1;
     }
 }
 
